@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'sin dependencias'",
-  "buildCommand": "node oficina-trading/construir.js && rm -rf public && mkdir -p public && cp oficina-trading/oficina.html public/index.html && cp oficina-trading/engine.js public/engine.js",
+  "buildCommand": "ls public",
   "outputDirectory": "public"
 }

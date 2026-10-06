@@ -7,4 +7,3 @@ datos/
 __pycache__/
 .venv/
 node_modules/
-public/
