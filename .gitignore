@@ -1,0 +1,9 @@
+# Estado, registros y datos descargados: se generan en cada ordenador y pueden incluir tu número de cuenta
+estado.json
+registro.csv
+informe.md
+*.log
+datos/
+__pycache__/
+.venv/
+node_modules/
