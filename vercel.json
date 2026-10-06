@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'sin dependencias'",
-  "buildCommand": "test -f vercel.json || exit 11; test -d oficina-trading || exit 12; test -f public/index.html || exit 13; test -d public || exit 14; exit 15",
+  "buildCommand": "test -f fondo.py && exit 21; test -f engine.js && exit 22; test -f bot.py && exit 23; test -f ../vercel.json && exit 24; test -f ../../vercel.json && exit 25; exit 26",
   "outputDirectory": "public"
 }
