@@ -42,5 +42,5 @@ Q
 launchctl unload "$PR" 2>/dev/null || true
 launchctl load "$PR"
 echo "Probando sin IBKR..."
-.venv/bin/python fondo.py --virtual || true
+[ -f broker.txt ] || .venv/bin/python fondo.py --virtual || true
 echo "Listo. El fondo correrá de lunes a viernes a las 10:30 (con IB Gateway abierto en modo Paper)."
