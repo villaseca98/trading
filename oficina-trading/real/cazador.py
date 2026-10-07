@@ -27,6 +27,7 @@ PARAMS = {
     "atr_mult": 5.0,          # distancia del stop en movimientos medios diarios (de cierre a cierre)
     "max_pos": 0.10,          # 10 % del capital como máximo por posición
     "max_posiciones": 4,
+    "toma_beneficio": 0.15,   # al +15 % vende la mitad y sube el stop a la entrada (el resto ya no puede perder)
     "salida_media": False,    # vender también si cierra bajo la media de 50 (en las pruebas daba más sustos que ayuda)
 }
 
@@ -74,7 +75,7 @@ def buscar(P: pd.DataFrame, p=PARAMS) -> list:
     return sorted(out, key=lambda x: -x["puntuacion"])
 
 
-def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float, p=PARAMS, entero=True, subtopes=None):
+def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float, p=PARAMS, entero=True, subtopes=None, sin_compras=False):
     """
     Decide las órdenes del día para el cazador.
     cartera = {simbolo: {"cantidad", "entrada", "fecha", "stop", "maximo"}} (se actualiza aquí).
@@ -93,12 +94,25 @@ def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float,
         pos["maximo"] = max(pos.get("maximo", px), px)
         pos["stop"] = round(max(pos["stop"], pos["maximo"] - p["atr_mult"] * atr), 4)
         m50 = float(c.rolling(p["media_corta"]).mean().iloc[-1])
+        tp = p.get("toma_beneficio")
+        if tp and not pos.get("parcial") and px >= pos["entrada"] * (1 + tp) and pos["cantidad"] >= 2 and px > pos["stop"]:
+            q = pos["cantidad"] // 2
+            ventas.append({"simbolo": s, "cantidad": q, "precio": px, "parcial": True,
+                           "motivo": f"toma de beneficios al +{tp * 100:.0f} % (vende la mitad, el resto con stop en la entrada)",
+                           "resultado_%": round((px / pos["entrada"] - 1) * 100, 1)})
+            pos["cantidad"] -= q; pos["parcial"] = True
+            pos["stop"] = round(max(pos["stop"], pos["entrada"]), 4)
+            continue
         if px <= pos["stop"] or (p["salida_media"] and px < m50):
             motivo = "salta el stop" if px <= pos["stop"] else "pierde la media de 50"
             ventas.append({"simbolo": s, "cantidad": pos["cantidad"], "precio": px, "motivo": motivo,
                            "resultado_%": round((px / pos["entrada"] - 1) * 100, 1)})
     for v in ventas:
-        cartera.pop(v["simbolo"], None)
+        if not v.get("parcial"):
+            cartera.pop(v["simbolo"], None)
+    if sin_compras:
+        notas.append("Hoy no se abren posiciones nuevas: la cuenta ha caído más del límite diario.")
+        return ventas, compras, buscar(P, p), notas
     # 2. entradas
     candidatos = buscar(P, p)
     usado = sum(pos["cantidad"] * float(P[s].dropna().iloc[-1]) for s, pos in cartera.items() if s in P)

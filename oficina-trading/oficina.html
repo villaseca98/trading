@@ -60,7 +60,10 @@ button { font: inherit; color: inherit; }
 .tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); }
 .tabs button { background: none; border: 0; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 15px; color: var(--muted); cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--acc); color: var(--acc-ink); }
-.tabs button:focus-visible, .tb button:focus-visible, .fila:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+.subnav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.subnav button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-weight: 700; font-size: 13px; color: var(--muted); cursor: pointer; }
+.subnav button[aria-selected="true"] { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.subnav button:focus-visible, .tabs button:focus-visible, .tb button:focus-visible, .fila:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 .cuerpo { overflow: auto; padding: 10px 12px 14px; min-height: 0; }
 .nota { color: var(--muted); font-size: 13.5px; line-height: 1.4; margin: 0 0 10px; }
 .nota b { color: var(--fg); }
@@ -145,7 +148,7 @@ canvas#c.drag { cursor: grabbing; }
   <header class="top">
     <div class="marca"><b>LOCO CAPITAL</b><span>TRADING FLOOR</span></div>
     <div class="kpis">
-      <div class="kpi"><small>Patrimonio</small><strong id="kPat">–</strong></div>
+      <div class="kpi"><small id="kPatLbl">Patrimonio</small><strong id="kPat">–</strong></div>
       <div class="kpi hl" id="kResBox"><small>Resultado</small><strong id="kRes">–</strong></div>
       <div class="kpi hl" id="kHoyBox"><small>Hoy</small><strong id="kHoy">–</strong></div>
       <div class="kpi" id="kDDBox"><small>Caída desde máximos</small><strong id="kDD">–</strong></div>
@@ -158,11 +161,11 @@ canvas#c.drag { cursor: grabbing; }
   <div class="main">
     <section class="panel" aria-label="Panel del fondo">
       <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="false" data-tab="real" id="tab-real" hidden>Mi fondo</button>
         <button role="tab" aria-selected="true" data-tab="ranking" id="tab-ranking">Ranking</button>
         <button role="tab" aria-selected="false" data-tab="equipos" id="tab-equipos">Equipos</button>
         <button role="tab" aria-selected="false" data-tab="informe" id="tab-informe">Informe</button>
         <button role="tab" aria-selected="false" data-tab="control" id="tab-control">Control</button>
-        <button role="tab" aria-selected="false" data-tab="real" id="tab-real" hidden>Real</button>
       </div>
       <div class="cuerpo" id="cuerpo"></div>
     </section>
@@ -607,31 +610,67 @@ const CTRL = [
   ['asignacion', 'Capital por trader ascendido', 0.01, 0.1, 0.005, v => (v * 100).toFixed(1).replace('.', ',') + ' %', 'Porcentaje del fondo que recibe cada ascenso.'],
   ['maxVivos', 'Plazas en la sala de trading', 4, 40, 1, v => v, ''],
 ];
+let sub = 'hoy';
+try { sub = localStorage.getItem('ofi-sub') || 'hoy'; } catch (e) {}
+const SUBS = [['hoy', 'Hoy'], ['cartera', 'Cartera'], ['cazador', 'Cazador'], ['cripto', 'Cripto'], ['baja', 'A la baja'], ['futuros', 'Futuros'], ['limites', 'Límites'], ['incubadora', 'Incubadora']];
 function realHTML() {
   const R = window.ESTADO_REAL; if (!R) return '<p class="nota">Aún no hay fondo real. Ejecuta <b>python fondo.py --virtual</b> en la carpeta real.</p>';
   const eur = x => (Math.round(x * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const n2 = x => (+x).toFixed(2).replace('.', ',');
+  const nom = s => `<b>${esc(s)}</b> <span style="color:var(--muted)">${esc((R.nombres || {})[s] || '')}</span>`;
   const caida = 1 - R.valor / R.pico;
-  let h = `<p class="nota">Último informe del <b>fondo real</b> (${esc(R.fecha)}, generado ${esc(R.generado.replace('T', ' '))}). Modo <b>${esc(R.modo)}</b> · cuenta ${esc(R.cuenta)} · perfil ${esc(R.perfil)}.${R.kill ? ' <b class="neg">Kill switch activo.</b>' : ''}</p>`;
-  h += `<table class="g"><tbody><tr><td>Valor</td><td>${eur(R.valor)}</td></tr><tr><td>Máximo</td><td>${eur(R.pico)}</td></tr><tr><td>Caída desde máximo</td><td class="${caida > 0.05 ? 'neg' : ''}">${(caida * 100).toFixed(2).replace('.', ',')} %</td></tr><tr><td>Régimen</td><td>${esc(R.regimen)}</td></tr></tbody></table>`;
-  const hist = (R.historia || []).map(x => x.valor);
-  if (hist.length > 1) h += `<div style="margin:-6px 0 10px">${spark(hist).replace('viewBox="0 0 64 22"', 'viewBox="0 0 64 22" style="width:100%;height:46px" preserveAspectRatio="none"')}</div>`;
-  h += `<div class="sec"><h3>CARTERA OBJETIVO</h3><span>${Object.keys(R.posiciones || {}).length} posiciones</span></div><div style="overflow-x:auto"><table class="g"><thead><tr><th>Activo</th><th>Peso</th><th>Tienes</th></tr></thead><tbody>`;
-  const sims = [...new Set([...Object.keys(R.pesos || {}), ...Object.keys(R.posiciones || {})])];
-  for (const s of sims) h += `<tr><td><b>${esc(s)}</b> <span style="color:var(--muted)">${esc((R.nombres || {})[s] || '')}</span></td><td>${((R.pesos[s] || 0) * 100).toFixed(1).replace('.', ',')} %</td><td>${R.posiciones[s] || 0}</td></tr>`;
-  h += `</tbody></table></div>`;
-  if ((R.ordenes || []).length) h += `<div class="sec"><h3>ÓRDENES</h3><span>${R.ordenes.length}</span></div><ul class="log">${R.ordenes.map(o => `<li><b>${o.lado === 'BUY' ? 'Compra' : 'Venta'}</b> ${o.cantidad} ${esc(o.simbolo)} a ${o.limite} € · ${esc(o.estado)}</li>`).join('')}</ul>`;
-  h += `<div class="sec"><h3>LA OFICINA DICE</h3><span></span></div><ul class="log">${(R.voz || []).map(v => `<li><b>${esc(v.quien)}</b> ${esc(v.texto)}</li>`).join('')}</ul>`;
-  const Z = R.cazador;
-  if (Z) {
-    const pos = Object.entries(Z.cartera || {});
-    h += `<div class="sec"><h3>CAZADOR DE TENDENCIAS</h3><span>tope ${Math.round(Z.tope * 100)} % del capital</span></div>`;
-    h += pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td><b>${esc(s)}</b> <span style="color:var(--muted)">${esc((R.nombres || {})[s] || '')}</span> · ${p.cantidad}</td><td>${(+p.entrada).toFixed(2).replace('.', ',')} €</td><td>${(+p.stop).toFixed(2).replace('.', ',')} €</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora.</p>';
-    if ((Z.candidatos || []).length) h += `<p class="nota">En tendencia hoy: ${Z.candidatos.map(c => `<b>${esc(c.simbolo)}</b> +${String(c['momentum_6m_%']).replace('.', ',')} %${c.pasa_prevision ? '' : ' (descartado)'}`).join(' · ')}</p>`;
-  }
-  if ((R.incubadora || []).length) {
-    h += `<div class="sec"><h3>INCUBADORA REAL</h3><span>fuera de muestra</span></div><div style="overflow-x:auto"><table class="g"><thead><tr><th>Estrategia</th><th>Sesiones</th><th>Result.</th><th>Sharpe</th></tr></thead><tbody>`;
-    for (const f of R.incubadora) h += `<tr><td>${esc(f.nombre)}${f.propuesta_ascenso ? ' <b class="pos">· propuesta</b>' : ''}</td><td>${f.sesiones}</td><td class="${cls(f['resultado_%'])}">${String(f['resultado_%']).replace('.', ',')} %</td><td>${f.sharpe ?? '–'}</td></tr>`;
+  const Z = R.cazador || { cartera: {}, candidatos: [] };
+  const G = R.grupos || { cripto: [], baja: [] }, Lm = R.limites || {};
+  const enGrupo = (g, s) => (G[g] || []).includes(s);
+  const tablaPos = filtro => { const pos = Object.entries(Z.cartera || {}).filter(([s]) => filtro(s));
+    return pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td>${nom(s)} · ${p.cantidad}${p.parcial ? ' <span class="pos">· beneficio asegurado</span>' : ''}</td><td>${n2(p.entrada)} €</td><td>${n2(p.stop)} €</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora.</p>'; };
+  const vigilando = filtro => { const c = (Z.candidatos || []).filter(x => filtro(x.simbolo));
+    return c.length ? `<p class="nota">En tendencia hoy: ${c.map(x => `<b>${esc(x.simbolo)}</b> +${String(x['momentum_6m_%']).replace('.', ',')} %${x.pasa_prevision ? '' : ' (descartado)'}`).join(' · ')}</p>` : '<p class="nota">Nada en tendencia clara hoy en este grupo.</p>'; };
+  let h = `<div class="subnav" role="tablist" aria-label="Secciones del fondo">${SUBS.map(([k, t]) => `<button role="tab" data-sub="${k}" aria-selected="${k === sub}">${t}</button>`).join('')}</div>`;
+  h += `<p class="nota">Informe del ${esc(R.fecha)} · modo <b>${esc(R.modo)}</b> · cuenta ${esc(R.cuenta)}${R.kill ? ' · <b class="neg">kill switch activo</b>' : ''}</p>`;
+  if (sub === 'hoy') {
+    h += `<table class="g"><tbody><tr><td>Valor</td><td>${eur(R.valor)}</td></tr><tr><td>Caída desde máximo</td><td class="${caida > 0.05 ? 'neg' : ''}">${n2(caida * 100)} %</td></tr><tr><td>Régimen</td><td>${esc(R.regimen)}</td></tr></tbody></table>`;
+    const hist = (R.historia || []).map(x => x.valor);
+    if (hist.length > 1) h += `<div style="margin:-6px 0 10px">${spark(hist).replace('viewBox="0 0 64 22"', 'viewBox="0 0 64 22" style="width:100%;height:46px" preserveAspectRatio="none"')}</div>`;
+    const ord = R.ordenes || [];
+    h += `<div class="sec"><h3>ACCIONES DE HOY</h3><span>${ord.length} órdenes</span></div>`;
+    h += ord.length ? `<ul class="log">${ord.map(o => `<li><b class="${o.lado === 'BUY' ? 'pos' : 'neg'}">${o.lado === 'BUY' ? 'Compra' : 'Venta'}</b> ${o.cantidad} ${nom(o.simbolo)} a ${o.limite} € · ${esc(o.estado)}</li>`).join('')}</ul>` : '<p class="nota">Hoy no toca mover nada. El dinero se queda quieto hasta que haya una oportunidad clara.</p>';
+    h += `<div class="sec"><h3>LA OFICINA DICE</h3><span></span></div><ul class="log">${(R.voz || []).filter(v => v.quien !== 'trader').map(v => `<li><b>${esc(v.quien)}</b> ${esc(v.texto)}</li>`).join('')}</ul>`;
+  } else if (sub === 'cartera') {
+    h += `<div class="sec"><h3>CARTERA PRINCIPAL</h3><span>rebalanceo semanal</span></div><div style="overflow-x:auto"><table class="g"><thead><tr><th>Activo</th><th>Peso</th><th>Tienes</th></tr></thead><tbody>`;
+    const sims = [...new Set([...Object.keys(R.pesos || {}), ...Object.keys(R.posiciones || {})])];
+    for (const s of sims) h += `<tr><td>${nom(s)}</td><td>${n2((R.pesos[s] || 0) * 100)} %</td><td>${R.posiciones[s] || 0}</td></tr>`;
     h += `</tbody></table></div>`;
+  } else if (sub === 'cazador') {
+    const otro = s => !enGrupo('cripto', s) && !enGrupo('baja', s);
+    h += `<div class="sec"><h3>CAZADOR DE TENDENCIAS</h3><span>tope ${Math.round((Z.tope || 0) * 100)} % del capital</span></div>`;
+    h += `<p class="nota">Revisa cada día sectores y temas. Entra solo con tendencia y buen historial, arriesga un 1 % por posición, al +${Math.round((Lm.toma || 0.15) * 100)} % vende la mitad.</p>`;
+    h += tablaPos(otro) + vigilando(otro);
+  } else if (sub === 'cripto') {
+    h += `<div class="sec"><h3>CRIPTO</h3><span>tope ${Math.round((Lm.cripto || 0) * 100)} % del capital</span></div>`;
+    h += `<p class="nota">ETN de Bitcoin y Ethereum en Xetra. Mismas reglas que el cazador, con menos tamaño porque se mueven mucho más.</p>`;
+    h += tablaPos(s => enGrupo('cripto', s)) + vigilando(s => enGrupo('cripto', s));
+  } else if (sub === 'baja') {
+    h += `<div class="sec"><h3>A LA BAJA</h3><span>tope ${Math.round((Lm.baja || 0) * 100)} % del capital</span></div>`;
+    h += `<p class="nota">ETF inversos: suben cuando el índice cae. Solo entran cuando la caída es clara. Sin margen: como mucho se pierde lo invertido.</p>`;
+    h += tablaPos(s => enGrupo('baja', s)) + vigilando(s => enGrupo('baja', s));
+  } else if (sub === 'futuros') {
+    const F = R.futuros || [];
+    h += `<div class="sec"><h3>FUTUROS MICRO</h3><span>solo plan, sin órdenes</span></div>`;
+    h += `<p class="nota">Qué haría hoy la mesa de futuros. Largo si sube, corto si baja. Nunca más exposición que tu capital. No envía nada a IBKR.</p>`;
+    h += F.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Futuro</th><th>Postura</th><th>Contratos</th><th>Stop</th></tr></thead><tbody>${F.map(f => `<tr><td><b>${esc(f.simbolo)}</b> <span style="color:var(--muted)">${esc(f.nombre)}</span>${f.nota ? `<br><small style="color:var(--muted)">${esc(f.nota)}</small>` : ''}</td><td class="${f.lado === 'LARGO' ? 'pos' : f.lado === 'CORTO' ? 'neg' : ''}">${esc(f.lado)}</td><td>${f.contratos ?? '–'}</td><td>${f.stop ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Aún sin plan de futuros: aparecerá tras la próxima pasada del fondo.</p>';
+  } else if (sub === 'limites') {
+    const fila = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+    h += `<div class="sec"><h3>LÍMITES DE SEGURIDAD</h3><span></span></div><table class="g"><tbody>` +
+      fila('Kill switch (caída desde máximo)', Math.round((Lm.kill || 0.15) * 100) + ' %') +
+      fila('Sin compras nuevas si el día cae más de', Math.round((Lm.dia || 0.02) * 100) + ' %') +
+      fila('Toma de beneficios (vende la mitad)', '+' + Math.round((Lm.toma || 0.15) * 100) + ' %') +
+      fila('Riesgo por posición', '1 %') + fila('Tope cazador', Math.round((Z.tope || 0) * 100) + ' %') +
+      fila('Tope cripto', Math.round((Lm.cripto || 0) * 100) + ' %') + fila('Tope a la baja', Math.round((Lm.baja || 0) * 100) + ' %') +
+      `</tbody></table><p class="nota">Se cambian en <b>config.py</b>. Con dinero real hace falta además tu confirmación expresa.</p>`;
+  } else if (sub === 'incubadora') {
+    h += `<div class="sec"><h3>INCUBADORA REAL</h3><span>fuera de muestra</span></div>`;
+    h += (R.incubadora || []).length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Estrategia</th><th>Sesiones</th><th>Result.</th><th>Sharpe</th></tr></thead><tbody>${R.incubadora.map(f => `<tr><td>${esc(f.nombre)}${f.propuesta_ascenso ? ' <b class="pos">· propuesta</b>' : ''}</td><td>${f.sesiones}</td><td class="${cls(f['resultado_%'])}">${String(f['resultado_%']).replace('.', ',')} %</td><td>${f.sharpe ?? '–'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin candidatas todavía.</p>';
   }
   return h;
 }
@@ -658,10 +697,24 @@ function reiniciar() {
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { pestana = b.dataset.tab; try { localStorage.setItem('ofi-tab', pestana); } catch (e) {} marcarTab(); pintarPanel(); });
 function marcarTab() { document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === pestana)); }
-$('cuerpo').addEventListener('click', e => { const f = e.target.closest('.fila[data-id]'); if (f) seleccionar('t' + f.dataset.id, true); });
+$('cuerpo').addEventListener('click', e => { const sb = e.target.closest('[data-sub]'); if (sb) { sub = sb.dataset.sub; try { localStorage.setItem('ofi-sub', sub); } catch (er) {} $('cuerpo').dataset.html = ''; pintarPanel(); return; } const f = e.target.closest('.fila[data-id]'); if (f) seleccionar('t' + f.dataset.id, true); });
 $('cuerpo').addEventListener('keydown', e => { const f = e.target.closest('.fila[data-id]'); if (f && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); seleccionar('t' + f.dataset.id, true); } });
 
 function pintarCabecera() {
+  const R = window.ESTADO_REAL;
+  if (R && pestana === 'real') {
+    const H = R.historia || [], ini = H.length ? H[0].valor : R.valor, ayer = H.length > 1 ? H[H.length - 2].valor : R.valor;
+    const e2 = x => (Math.round(x * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    const res = R.valor - ini, hoy = R.valor - ayer, dd = 1 - R.valor / R.pico;
+    $('kPatLbl').textContent = 'Mi fondo · ' + R.modo; $('kPat').textContent = e2(R.valor);
+    $('kRes').innerHTML = `<span class="${cls(res)}">${e2(res)}</span>`; $('kHoy').innerHTML = `<span class="${cls(hoy)}">${e2(hoy)}</span>`;
+    $('kResBox').className = 'kpi ' + (res >= 0 ? 'hl' : 'malo'); $('kHoyBox').className = 'kpi ' + (hoy >= 0 ? 'hl' : 'malo');
+    $('kDD').textContent = (Math.max(0, dd) * 100).toFixed(2).replace('.', ',') + ' %'; $('kDDBox').className = 'kpi';
+    $('kExp').textContent = Math.round(Object.values(R.pesos || {}).reduce((a, b) => a + b, 0) * 100) + ' %';
+    $('kReg').textContent = R.regimen; $('kFecha').textContent = R.fecha;
+    return;
+  }
+  $('kPatLbl').textContent = 'Patrimonio (simulación)';
   const pat = fondo.patrimonio(), res = pat - fondo.aj.capital, dd = 1 - pat / fondo.pico, hoy = fondo.hoy || 0;
   $('kPat').textContent = fmt(pat);
   $('kRes').innerHTML = `<span class="${cls(res)}">${fmt(res, true)}</span><em class="${cls(res)}">${pct(res / fondo.aj.capital, 2)}</em>`;

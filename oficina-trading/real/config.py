@@ -50,6 +50,18 @@ INVERSOS = {
 INVERSOS_TOPE = 0.10    # máximo del capital total en apuestas a la baja
 CAZADOR.update(INVERSOS)
 
+LIMITE_PERDIDA_DIA = 0.02  # si la cuenta cae más de un 2 % desde la última pasada, ese día no se compra nada nuevo
+
+# ── Futuros micro (CME, en dólares). SOLO PLAN: calcula qué haría (largo o corto) y lo muestra,
+# pero no envía ninguna orden. Activarlos de verdad exige cuenta de margen, permisos de futuros y meses de demo.
+FUTUROS = {
+    "MES": ("ES=F", 5.0, "S&P 500 micro"),
+    "MNQ": ("NQ=F", 2.0, "Nasdaq-100 micro"),
+    "MGC": ("GC=F", 10.0, "Oro micro"),
+    "MBT": ("BTC=F", 0.1, "Bitcoin micro"),
+}
+FUTUROS_RIESGO = 0.01   # 1 % del capital en riesgo por contrato planificado
+
 # ── Perfil de riesgo: volatilidad anual objetivo de la cartera
 PERFILES = {"prudente": 0.08, "equilibrado": 0.12, "dinamico": 0.15}
 PERFIL = "equilibrado"

@@ -26,6 +26,7 @@ import config as C
 import datos
 import estrategia as E
 import cazador as K
+import futuros as FUT
 import incubadora
 from ejecucion import BrokerIBKR, BrokerVirtual, planificar
 
@@ -61,6 +62,8 @@ def main():
     tickers = {s: y for s, (y, _) in C.ACTIVOS.items()}
     tickers[C.LIQUIDEZ[0]] = C.LIQUIDEZ[1]
     tickers.update({s: y for s, (y, _) in C.CAZADOR.items()})
+    tickers.update({y: y for (y, _, _) in C.FUTUROS.values()})
+    tickers["EURUSD"] = "EURUSD=X"
     todo = datos.descargar(tickers)
     P = todo[list(C.ACTIVOS)].dropna(how="all")
     L = todo[C.LIQUIDEZ[0]].ffill()
@@ -128,7 +131,11 @@ def main():
             compras, candidatos, notas_caz = [], [], []
             cartera.clear()
         else:
-            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE), "baja": (set(C.INVERSOS), C.INVERSOS_TOPE)})
+            previo = estado["historia"][-1]["valor"] if estado["historia"] else None
+            freno = bool(previo) and valor < previo * (1 - C.LIMITE_PERDIDA_DIA)
+            if freno:
+                decir("riesgos", f"Límite diario: la cuenta cae {(1 - valor / previo) * 100:.1f} % desde ayer. Hoy no se abren posiciones nuevas.")
+            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, sin_compras=freno, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE), "baja": (set(C.INVERSOS), C.INVERSOS_TOPE)})
         ordenes_caz = [{"simbolo": v["simbolo"], "lado": "SELL", "cantidad": v["cantidad"], "limite": round(v["precio"] * (1 - C.MARGEN_LIMITE), 2), "importe": round(v["cantidad"] * v["precio"], 2)} for v in ventas] + \
                       [{"simbolo": c["simbolo"], "lado": "BUY", "cantidad": c["cantidad"], "limite": round(c["precio"] * (1 + C.MARGEN_LIMITE), 2), "importe": round(c["cantidad"] * c["precio"], 2)} for c in compras]
         hechas_caz = broker.ejecutar(ordenes_caz, precios) if ordenes_caz else []
@@ -146,6 +153,14 @@ def main():
         if not ventas and not compras:
             decir("prevision", f"Cazador: sin cambios hoy. Posiciones abiertas: {', '.join(cartera) or 'ninguna'}.")
         hechas = hechas + hechas_caz
+        # 6c. Mesa de futuros (solo plan)
+        try:
+            fx = float(todo["EURUSD"].dropna().iloc[-1]) if "EURUSD" in todo and todo["EURUSD"].notna().any() else 1.1
+            plan_fut = FUT.plan(todo, valor, fx)
+            activos_fut = [f for f in plan_fut if f["lado"] in ("LARGO", "CORTO") and f["contratos"] > 0]
+            decir("macro", "Futuros (solo plan): " + (", ".join(f"{f['simbolo']} {f['lado'].lower()} {f['contratos']}" for f in activos_fut) if activos_fut else "nada cabe con el riesgo permitido o no hay tendencia clara") + ".")
+        except Exception as e:
+            plan_fut = []; print(f"Aviso: la mesa de futuros falló ({e}).")
         valor_fin = broker.valor(precios)
         posiciones = broker.posiciones()
     finally:
@@ -182,6 +197,8 @@ def main():
         "pico": round(estado["pico"], 2), "kill": estado["kill"], "regimen": regimen,
         "pesos": objetivo, "posiciones": posiciones, "ordenes": hechas, "voz": voz,
         "incubadora": filas, "historia": estado["historia"],
+        "futuros": plan_fut, "grupos": {"cripto": list(C.CRIPTO), "baja": list(C.INVERSOS)},
+        "limites": {"cripto": C.CRIPTO_TOPE, "baja": C.INVERSOS_TOPE, "dia": C.LIMITE_PERDIDA_DIA, "kill": C.KILL_DD, "toma": K.PARAMS.get("toma_beneficio")},
         "cazador": {"cartera": estado.get("cazador", {}), "candidatos": candidatos[:8], "tope": C.CAZADOR_TOPE},
         "nombres": {s: d for s, (_, d) in C.ACTIVOS.items()} | {s: d for s, (_, d) in C.CAZADOR.items()} | {C.LIQUIDEZ[0]: C.LIQUIDEZ[2]},
     }
