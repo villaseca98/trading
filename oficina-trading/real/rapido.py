@@ -68,7 +68,7 @@ def simular(c: pd.Series):
 
 
 def main():
-    if C.ESTRATEGIA == "dca":
+    if C.ESTRATEGIA != "fondo":
         return  # con el plan de acumulación no hay compraventa rápida
     if "--simular" in sys.argv:
         for par in PARES:

@@ -3,3 +3,4 @@ numpy
 yfinance>=0.2.40
 ib_async>=1.0
 alpaca-py>=0.30
+ccxt>=4.0

@@ -204,6 +204,8 @@ canvas#c.drag { cursor: grabbing; }
 <script src="ejemplo_real.js" onerror="void 0"></script>
 <script src="datos/rapido.js" onerror="void 0"></script>
 <script src="datos/dca.js" onerror="void 0"></script>
+<script src="datos/vigia.js" onerror="void 0"></script>
+<script src="datos/binance.js" onerror="void 0"></script>
 <script>if (!window.ESTADO_REAL && window.EJEMPLO_REAL) window.ESTADO_REAL = window.EJEMPLO_REAL;</script>
 <script>
 (function () {
@@ -630,10 +632,26 @@ function realHTML() {
     return pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td>${nom(s)} · ${p.cantidad}${p.parcial ? ' <span class="pos">· beneficio asegurado</span>' : ''}</td><td>${n2(p.entrada)} €</td><td>${n2(p.stop)} €</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora.</p>'; };
   const vigilando = filtro => { const c = (Z.candidatos || []).filter(x => filtro(x.simbolo));
     return c.length ? `<p class="nota">En tendencia hoy: ${c.map(x => `<b>${esc(x.simbolo)}</b> +${String(x['momentum_6m_%']).replace('.', ',')} %${x.pasa_prevision ? '' : ' (descartado)'}`).join(' · ')}</p>` : '<p class="nota">Nada en tendencia clara hoy en este grupo.</p>'; };
-  let h = `<div class="subnav" role="tablist" aria-label="Secciones del fondo">${SUBS.filter(([k]) => !window.DCA || k === 'plan').map(([k, t]) => `<button role="tab" data-sub="${k}" aria-selected="${k === sub}">${t}</button>`).join('')}</div>`;
+  let h = `<div class="subnav" role="tablist" aria-label="Secciones del fondo">${SUBS.filter(([k]) => !(window.DCA || window.VIGIA || window.BINANCE) || k === 'plan').map(([k, t]) => `<button role="tab" data-sub="${k}" aria-selected="${k === sub}">${t}</button>`).join('')}</div>`;
   h += `<p class="nota">Informe del ${esc(R.fecha)} · modo <b>${esc(R.modo)}</b> · cuenta ${esc(R.cuenta)}${R.kill ? ' · <b class="neg">kill switch activo</b>' : ''}</p>`;
-  if (window.DCA) sub = 'plan';
-  if (sub === 'plan') {
+  if (window.DCA || window.VIGIA || window.BINANCE) sub = 'plan';
+  if (sub === 'plan' && (window.VIGIA || window.BINANCE)) {
+    const V = window.VIGIA, B = window.BINANCE;
+    h += `<div class="sec"><h3>TRADE REPUBLIC · VIGÍA</h3><span>${V ? esc(V.fecha) : ''}</span></div>`;
+    h += `<p class="nota">ETF y acciones en Trade Republic. La oficina vigila y te avisa en el Mac cuando algo cae lo bastante para comprar extra; tú compras con un toque (1 € por orden). La compra mensual va con tus planes de inversión, que son gratis.</p>`;
+    if (V) {
+      const av = (V.log || []).slice().reverse();
+      h += av.length ? `<ul class="log">${av.slice(0, 8).map(t => `<li><b class="pos">Oportunidad</b> ${esc(t)}</li>`).join('')}</ul>` : '<p class="nota">Sin oportunidades por ahora: todo cerca de máximos.</p>';
+      h += `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Activo</th><th>Precio</th><th>Desde máx.</th></tr></thead><tbody>${V.filas.map(f => `<tr><td><b>${esc(f.nombre)}</b> <span style="color:var(--muted)">${esc(f.tipo)}${f.estado.includes('rota') ? ' · tendencia rota' : ''}</span></td><td>${n2(f.precio)}</td><td class="${f.nivel ? 'neg' : ''}">${f.caida < 3 ? 'máximos' : '−' + n2(f.caida) + ' %'}</td></tr>`).join('')}</tbody></table></div>`;
+    } else h += '<p class="nota">Aparecerá tras la primera pasada en tu Mac.</p>';
+    h += `<div class="sec"><h3>BINANCE · CRIPTO AUTOMÁTICA</h3><span>${B ? esc(B.red) + (B.prueba ? ' · modo prueba' : '') : 'sin conectar'}</span></div>`;
+    h += `<p class="nota">Compra Bitcoin, Ethereum y Solana cada semana y extra en caídas del 15, 30 y 45 %. Nunca vende. Comisión 0,1 %.</p>`;
+    if (B) {
+      h += `<table class="g"><tbody><tr><td>Saldo en euros</td><td>${n2(B.saldo)} €</td></tr></tbody></table>`;
+      h += `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Moneda</th><th>Objetivo</th><th>Tienes</th><th>Desde máx.</th></tr></thead><tbody>${B.filas.map(f => `<tr><td><b>${esc(f.moneda)}</b></td><td>${Math.round(f.objetivo * 100)} %</td><td>${n2(f.valor)} €</td><td class="${f.caida >= 15 ? 'neg' : ''}">−${n2(f.caida)} %</td></tr>`).join('')}</tbody></table></div>`;
+      h += `<ul class="log">${(B.log || []).slice().reverse().map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+    }
+  } else if (sub === 'plan') {
     const D = window.DCA;
     h += `<div class="sec"><h3>MI PLAN DE ACUMULACIÓN</h3><span>nunca vende</span></div>`;
     h += `<p class="nota">Compra cada semana hacia el peso objetivo de cada activo y compra extra cuando uno cae un 10, 20 o 30 % desde su máximo del último año. Guarda un ${D ? Math.round(D.polvora * 100) : 20} % del efectivo como reserva para esas caídas.</p>`;

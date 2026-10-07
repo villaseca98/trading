@@ -49,6 +49,14 @@ def main():
     ap.add_argument("--reabrir", action="store_true")
     ap.add_argument("--forzar", action="store_true")
     a = ap.parse_args()
+    if C.ESTRATEGIA == "tr_binance" and not a.virtual:
+        import vigia, cripto_binance
+        vigia.main()
+        if (Path(__file__).resolve().parent / "claves_binance.txt").exists():
+            cripto_binance.main()
+        else:
+            print("Cripto: falta claves_binance.txt, de momento solo vigía.")
+        return
     if C.ESTRATEGIA == "dca" and not a.virtual:
         import dca
         return dca.main()

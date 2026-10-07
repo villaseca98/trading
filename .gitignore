@@ -14,3 +14,8 @@ broker.txt
 enviar_ordenes.txt
 estado_rapido.json
 estado_dca.json
+claves_binance.txt
+enviar_binance.txt
+testnet.txt
+estado_binance.json
+estado_vigia.json

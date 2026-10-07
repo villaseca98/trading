@@ -2,7 +2,7 @@
 
 from pathlib import Path as _P
 _f = _P(__file__).resolve().parent / "broker.txt"  # archivo local (no se sube) para elegir bróker sin tocar este fichero
-ESTRATEGIA = "dca"   # "dca" = plan de acumulación (dca.py) · "fondo" = sistema completo de tendencias
+ESTRATEGIA = "tr_binance"   # "tr_binance" = vigía Trade Republic + cripto Binance · "dca" = Alpaca · "fondo" = sistema completo
 BROKER = _f.read_text().strip() if _f.exists() else "ibkr"   # "ibkr" (ETF europeos en Xetra, euros) o "alpaca" (EE. UU., dólares, sin comisión, con fracciones)
 FRACCIONES = False  # Alpaca permite comprar fracciones de acción; se activa solo abajo
 
