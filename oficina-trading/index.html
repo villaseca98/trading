@@ -195,6 +195,7 @@ canvas#c.drag { cursor: grabbing; }
 <script src="datos/precios.js" onerror="void 0"></script>
 <script src="datos/estado_real.js" onerror="void 0"></script>
 <script src="ejemplo_real.js" onerror="void 0"></script>
+<script src="datos/rapido.js" onerror="void 0"></script>
 <script>if (!window.ESTADO_REAL && window.EJEMPLO_REAL) window.ESTADO_REAL = window.EJEMPLO_REAL;</script>
 <script>
 (function () {
@@ -607,7 +608,7 @@ const CTRL = [
 ];
 let sub = 'hoy';
 try { sub = localStorage.getItem('ofi-sub') || 'hoy'; } catch (e) {}
-const SUBS = [['hoy', 'Hoy'], ['cartera', 'Cartera'], ['cazador', 'Cazador'], ['cripto', 'Cripto'], ['baja', 'A la baja'], ['futuros', 'Futuros'], ['limites', 'Límites'], ['incubadora', 'Incubadora']];
+const SUBS = [['hoy', 'Hoy'], ['rapido', 'Mesa rápida'], ['cartera', 'Cartera'], ['cazador', 'Cazador'], ['cripto', 'Cripto'], ['baja', 'A la baja'], ['futuros', 'Futuros'], ['limites', 'Límites'], ['incubadora', 'Incubadora']];
 function realHTML() {
   const R = window.ESTADO_REAL; if (!R) return '<p class="nota">Aún no hay fondo real. Ejecuta <b>python fondo.py --virtual</b> en la carpeta real.</p>';
   const eur = x => (Math.round(x * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -631,6 +632,16 @@ function realHTML() {
     h += `<div class="sec"><h3>ACCIONES DE HOY</h3><span>${ord.length} órdenes</span></div>`;
     h += ord.length ? `<ul class="log">${ord.map(o => `<li><b class="${o.lado === 'BUY' ? 'pos' : 'neg'}">${o.lado === 'BUY' ? 'Compra' : 'Venta'}</b> ${o.cantidad} ${nom(o.simbolo)} a ${o.limite} € · ${esc(o.estado)}</li>`).join('')}</ul>` : '<p class="nota">Hoy no toca mover nada. El dinero se queda quieto hasta que haya una oportunidad clara.</p>';
     h += `<div class="sec"><h3>LA OFICINA DICE</h3><span></span></div><ul class="log">${(R.voz || []).filter(v => v.quien !== 'trader').map(v => `<li><b>${esc(v.quien)}</b> ${esc(v.texto)}</li>`).join('')}</ul>`;
+  } else if (sub === 'rapido') {
+    const Q = window.RAPIDO;
+    h += `<div class="sec"><h3>MESA RÁPIDA · CRIPTO CADA HORA</h3><span>${Q ? 'tope ' + Math.round(Q.tope * 100) + ' %' : ''}</span></div>`;
+    h += `<p class="nota">Compra y vende Bitcoin, Ethereum y Solana cada hora, 24/7, en Alpaca. Entra en rupturas con tendencia, sale al +3 %, con stop o si se gira. Solo opera un par si sus reglas han ganado en los últimos 90 días.</p>`;
+    if (!Q) h += '<p class="nota">Aún sin actividad: aparecerá tras la primera hora con Alpaca conectado.</p>';
+    else {
+      const pos = Object.entries(Q.posiciones || {});
+      h += pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td><b>${esc(s)}</b> · ${p.cantidad}</td><td>${n2(p.entrada)} $</td><td>${n2(p.stop)} $</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora: esperando oportunidad.</p>';
+      h += `<ul class="log">${(Q.log || []).slice().reverse().map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+    }
   } else if (sub === 'cartera') {
     h += `<div class="sec"><h3>CARTERA PRINCIPAL</h3><span>rebalanceo semanal</span></div><div style="overflow-x:auto"><table class="g"><thead><tr><th>Activo</th><th>Peso</th><th>Tienes</th></tr></thead><tbody>`;
     const sims = [...new Set([...Object.keys(R.pesos || {}), ...Object.keys(R.posiciones || {})])];

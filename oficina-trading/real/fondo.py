@@ -101,7 +101,7 @@ def main():
             decir("kill", "Kill switch activo: no se compra nada de riesgo.")
 
         # la cartera principal usa el capital que no reserva el cazador
-        base = 1 - C.CAZADOR_TOPE - C.COLCHON_LIQUIDEZ
+        base = 1 - C.CAZADOR_TOPE - C.COLCHON_LIQUIDEZ - (C.RAPIDO_TOPE if C.BROKER == "alpaca" else 0)  # hueco para la mesa rápida
         objetivo = {s: round(w * base, 4) for s, w in pesos.items()}
         objetivo[C.LIQUIDEZ[0]] = round(max(0.0, base - sum(objetivo.values())), 4)
         propios = set(C.ACTIVOS) | {C.LIQUIDEZ[0]}

@@ -25,6 +25,22 @@ $(for d in 1 2 3 4 5; do echo "<dict><key>Weekday</key><integer>$d</integer><key
 P
 launchctl unload "$PLIST" 2>/dev/null || true
 launchctl load "$PLIST"
+# mesa rápida de cripto: cada hora (solo hace algo si el bróker es Alpaca)
+PR="$HOME/Library/LaunchAgents/com.loco.rapido.plist"
+cat > "$PR" <<Q
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.loco.rapido</string>
+<key>WorkingDirectory</key><string>$DIR/oficina-trading/real</string>
+<key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>[ "\$(cat broker.txt 2>/dev/null)" = alpaca ] &amp;&amp; .venv/bin/python rapido.py</string></array>
+<key>StartInterval</key><integer>3600</integer>
+<key>StandardOutPath</key><string>$DIR/oficina-trading/real/rapido.log</string>
+<key>StandardErrorPath</key><string>$DIR/oficina-trading/real/rapido.log</string>
+</dict></plist>
+Q
+launchctl unload "$PR" 2>/dev/null || true
+launchctl load "$PR"
 echo "Probando sin IBKR..."
 .venv/bin/python fondo.py --virtual || true
 echo "Listo. El fondo correrá de lunes a viernes a las 10:30 (con IB Gateway abierto en modo Paper)."
