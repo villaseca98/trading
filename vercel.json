@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'sin dependencias'",
-  "buildCommand": "if [ -d oficina-trading ]; then B=oficina-trading; else B=..; fi; mkdir -p public && cp $B/oficina.html public/index.html && cp $B/engine.js public/engine.js",
+  "buildCommand": "if [ -d oficina-trading ]; then B=oficina-trading; else B=..; fi; mkdir -p public && cp $B/oficina.html public/index.html && cp $B/engine.js public/engine.js && cp $B/ejemplo_real.js public/ejemplo_real.js",
   "outputDirectory": "public"
 }
