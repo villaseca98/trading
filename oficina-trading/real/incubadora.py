@@ -6,6 +6,8 @@ El comité propone ascender a la que, tras al menos un año, supere a la princip
 """
 import numpy as np
 import pandas as pd
+
+import config as C
 import estrategia as E
 
 
@@ -18,7 +20,7 @@ def _rsi(c, n):
 
 def rsi2_sp500(P, L):
     """Connors: compra el S&P 500 tras 1-3 días de caída fuerte en tendencia alcista."""
-    c = P["SXR8"]; r = _rsi(c, 2); f = c > c.rolling(200).mean(); ma5 = c.rolling(5).mean()
+    c = P[C.ROLES["sp500"]]; r = _rsi(c, 2); f = c > c.rolling(200).mean(); ma5 = c.rolling(5).mean()
     pos, dentro = [], False
     for i in range(len(c)):
         if dentro and c.iloc[i] > ma5.iloc[i]:
@@ -26,7 +28,7 @@ def rsi2_sp500(P, L):
         elif not dentro and r.iloc[i] < 10 and f.iloc[i]:
             dentro = True
         pos.append(1.0 if dentro else 0.0)
-    return pd.DataFrame({"SXR8": pos}, index=c.index), 1
+    return pd.DataFrame({C.ROLES["sp500"]: pos}, index=c.index), 1
 
 
 def doble_momentum(P, L):
@@ -35,27 +37,27 @@ def doble_momentum(P, L):
     m12 = P / P.shift(252) - 1
     l12 = L / L.shift(252) - 1
     w = pd.DataFrame(0.0, index=P.index, columns=P.columns)
-    mejor = m12[["SXR8", "IS3N"]].fillna(-9).idxmax(axis=1)
+    mejor = m12[[C.ROLES["sp500"], C.ROLES["emerg"]]].fillna(-9).idxmax(axis=1)
     for f in P.index:
         b = mejor.get(f)
         if isinstance(b, str) and m12.at[f, b] > l12.get(f, 0):
             w.at[f, b] = 1.0
-        elif not np.isnan(m12.at[f, "EUNH"]):
-            w.at[f, "EUNH"] = 1.0
+        elif not np.isnan(m12.at[f, C.ROLES["bonos"]]):
+            w.at[f, C.ROLES["bonos"]] = 1.0
     return w, 21
 
 
 def cartera_permanente(P, L):
     """Browne: 25 % bolsa, 25 % bonos, 25 % oro, 25 % liquidez. Rebalanceo mensual."""
     w = pd.DataFrame(0.0, index=P.index, columns=P.columns)
-    w["EUNL"] = 0.25; w["EUNH"] = 0.25; w["4GLD"] = 0.25
+    w[C.ROLES["mundo"]] = 0.25; w[C.ROLES["bonos"]] = 0.25; w[C.ROLES["oro"]] = 0.25
     return w, 21
 
 
 def bolsa_mundial(P, L):
     """Referencia: comprar y mantener bolsa mundial (como el plan de ahorro)."""
     w = pd.DataFrame(0.0, index=P.index, columns=P.columns)
-    w["EUNL"] = 1.0
+    w[C.ROLES["mundo"]] = 1.0
     return w, 21
 
 

@@ -39,12 +39,13 @@ def pesos_en(precios: pd.DataFrame, fecha, p=PARAMS) -> dict:
     nota = notas(hist, p).iloc[-1].fillna(0)
     rets = np.log(hist).diff().iloc[-p["vol_ventana"]:]
     vol = rets.std() * np.sqrt(252)
+    vol = vol.where(vol > 0)  # sin datos recientes: fuera
     vivos = [a for a in precios.columns if nota[a] > 0 and vol[a] > 0]
     if not vivos:
         return {}
     bruto = pd.Series({a: nota[a] / vol[a] for a in vivos})
     # cada activo con nota completa aporta el mismo riesgo
-    w = bruto / (pd.Series({a: 1 / vol[a] for a in precios.columns}).sum())
+    w = bruto / (pd.Series({a: 1 / vol[a] for a in precios.columns if vol[a] > 0}).sum())
     w = w.clip(upper=p["tope_activo"])
     # escalar a la volatilidad objetivo con la matriz de covarianzas
     cov = rets[vivos].cov() * 252

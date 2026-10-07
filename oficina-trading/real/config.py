@@ -15,6 +15,7 @@ ACTIVOS = {
     "4GLD": ("4GLD.DE", "Oro físico (Xetra-Gold)"),
     "EUNH": ("EUNH.DE", "Bonos de gobiernos de la zona euro"),
 }
+ROLES = {"sp500": "SXR8", "emerg": "IS3N", "mundo": "EUNL", "bonos": "EUNH", "oro": "4GLD"}  # para la incubadora
 LIQUIDEZ = ("XEON", "XEON.DE", "Monetario en euros (€STR)")  # donde se aparca lo no invertido
 BOLSA = "IBIS"       # Xetra
 DIVISA = "EUR"
@@ -82,7 +83,7 @@ MARGEN_LIMITE = 0.004   # órdenes limitadas a ±0,4 % del último precio
 HOST = "127.0.0.1"
 PUERTO = 4002           # IB Gateway demo = 4002 · TWS demo = 7497
 CLIENT_ID = 23
-MODO_PRUEBA = True      # True = calcula y apunta las órdenes pero no las envía
+MODO_PRUEBA = not (_P(__file__).resolve().parent / "enviar_ordenes.txt").exists()  # True = calcula y apunta las órdenes pero no las envía
 SOLO_DEMO = True        # True = se niega a operar si la cuenta no empieza por "DU"
 
 # ── Dinero real. No tocar hasta llevar meses en la demo. Hacen falta LAS TRES cosas:
@@ -106,6 +107,7 @@ if BROKER == "alpaca":
         "GLD": ("GLD", "Oro"),
         "IEF": ("IEF", "Bonos del Tesoro EE. UU. 7-10 años"),
     }
+    ROLES = {"sp500": "SPY", "emerg": "IEMG", "mundo": "URTH", "bonos": "IEF", "oro": "GLD"}
     LIQUIDEZ = ("BIL", "BIL", "Letras del Tesoro EE. UU. 1-3 meses")
     CAZADOR = {
         "XLK": ("XLK", "Tecnología EE. UU."), "SMH": ("SMH", "Semiconductores"),

@@ -51,6 +51,9 @@ def main():
     a = ap.parse_args()
 
     estado = leer_estado()
+    if estado.get("broker", "ibkr") != C.BROKER:  # cambio de bróker: la historia anterior no vale
+        estado = {"pico": None, "kill": False, "historia": [], "altas_incubadora": {}, "ultimo_rebalanceo": None}
+    estado["broker"] = C.BROKER
     voz = []  # (quién, qué dice) para el informe y la oficina
     decir = lambda quien, texto: (voz.append({"quien": quien, "texto": texto}), print(f"[{quien}] {texto}"))
 
