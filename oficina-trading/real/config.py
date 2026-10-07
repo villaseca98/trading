@@ -69,7 +69,7 @@ FUTUROS = {
 FUTUROS_RIESGO = 0.01   # 1 % del capital en riesgo por contrato planificado
 
 # ── Mesa rápida (rapido.py): compraventa de cripto cada hora en Alpaca
-RAPIDO_TOPE = 0.30      # máximo del capital en la mesa rápida
+RAPIDO_TOPE = 0.10      # máximo del capital en la mesa rápida (subir si demuestra que gana en Paper)
 RAPIDO_RIESGO = 0.005   # 0,5 % del capital en riesgo por operación
 
 # ── Perfil de riesgo: volatilidad anual objetivo de la cartera
