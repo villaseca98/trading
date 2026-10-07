@@ -49,6 +49,9 @@ def main():
     ap.add_argument("--reabrir", action="store_true")
     ap.add_argument("--forzar", action="store_true")
     a = ap.parse_args()
+    if C.ESTRATEGIA == "dca" and not a.virtual:
+        import dca
+        return dca.main()
 
     estado = leer_estado()
     if estado.get("broker", "ibkr") != C.BROKER:  # cambio de bróker: la historia anterior no vale

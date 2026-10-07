@@ -196,6 +196,7 @@ canvas#c.drag { cursor: grabbing; }
 <script src="datos/estado_real.js" onerror="void 0"></script>
 <script src="ejemplo_real.js" onerror="void 0"></script>
 <script src="datos/rapido.js" onerror="void 0"></script>
+<script src="datos/dca.js" onerror="void 0"></script>
 <script>if (!window.ESTADO_REAL && window.EJEMPLO_REAL) window.ESTADO_REAL = window.EJEMPLO_REAL;</script>
 <script>
 (function () {
@@ -607,8 +608,8 @@ const CTRL = [
   ['maxVivos', 'Plazas en la sala de trading', 4, 40, 1, v => v, ''],
 ];
 let sub = 'hoy';
-try { sub = localStorage.getItem('ofi-sub') || 'hoy'; } catch (e) {}
-const SUBS = [['hoy', 'Hoy'], ['rapido', 'Mesa rápida'], ['cartera', 'Cartera'], ['cazador', 'Cazador'], ['cripto', 'Cripto'], ['baja', 'A la baja'], ['futuros', 'Futuros'], ['limites', 'Límites'], ['incubadora', 'Incubadora']];
+try { sub = localStorage.getItem('ofi-sub') || 'plan'; } catch (e) {}
+const SUBS = [['plan', 'Mi plan'], ['hoy', 'Hoy'], ['rapido', 'Mesa rápida'], ['cartera', 'Cartera'], ['cazador', 'Cazador'], ['cripto', 'Cripto'], ['baja', 'A la baja'], ['futuros', 'Futuros'], ['limites', 'Límites'], ['incubadora', 'Incubadora']];
 function realHTML() {
   const R = window.ESTADO_REAL; if (!R) return '<p class="nota">Aún no hay fondo real. Ejecuta <b>python fondo.py --virtual</b> en la carpeta real.</p>';
   const eur = x => (Math.round(x * 100) / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -622,9 +623,21 @@ function realHTML() {
     return pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td>${nom(s)} · ${p.cantidad}${p.parcial ? ' <span class="pos">· beneficio asegurado</span>' : ''}</td><td>${n2(p.entrada)} €</td><td>${n2(p.stop)} €</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora.</p>'; };
   const vigilando = filtro => { const c = (Z.candidatos || []).filter(x => filtro(x.simbolo));
     return c.length ? `<p class="nota">En tendencia hoy: ${c.map(x => `<b>${esc(x.simbolo)}</b> +${String(x['momentum_6m_%']).replace('.', ',')} %${x.pasa_prevision ? '' : ' (descartado)'}`).join(' · ')}</p>` : '<p class="nota">Nada en tendencia clara hoy en este grupo.</p>'; };
-  let h = `<div class="subnav" role="tablist" aria-label="Secciones del fondo">${SUBS.map(([k, t]) => `<button role="tab" data-sub="${k}" aria-selected="${k === sub}">${t}</button>`).join('')}</div>`;
+  let h = `<div class="subnav" role="tablist" aria-label="Secciones del fondo">${SUBS.filter(([k]) => !window.DCA || k === 'plan').map(([k, t]) => `<button role="tab" data-sub="${k}" aria-selected="${k === sub}">${t}</button>`).join('')}</div>`;
   h += `<p class="nota">Informe del ${esc(R.fecha)} · modo <b>${esc(R.modo)}</b> · cuenta ${esc(R.cuenta)}${R.kill ? ' · <b class="neg">kill switch activo</b>' : ''}</p>`;
-  if (sub === 'hoy') {
+  if (window.DCA) sub = 'plan';
+  if (sub === 'plan') {
+    const D = window.DCA;
+    h += `<div class="sec"><h3>MI PLAN DE ACUMULACIÓN</h3><span>nunca vende</span></div>`;
+    h += `<p class="nota">Compra cada semana hacia el peso objetivo de cada activo y compra extra cuando uno cae un 10, 20 o 30 % desde su máximo del último año. Guarda un ${D ? Math.round(D.polvora * 100) : 20} % del efectivo como reserva para esas caídas.</p>`;
+    if (!D) h += '<p class="nota">Aún sin datos del plan: aparecerán tras la primera pasada con Alpaca.</p>';
+    else {
+      const tot = D.filas.reduce((a, f) => a + f.valor, 0) || 1;
+      h += `<table class="g"><tbody><tr><td>Valor de la cuenta</td><td>${n2(D.valor)} $</td></tr><tr><td>Efectivo (incluye reserva)</td><td>${n2(D.efectivo)} $</td></tr></tbody></table>`;
+      h += `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Activo</th><th>Objetivo</th><th>Ahora</th><th>Desde máx.</th></tr></thead><tbody>${D.filas.map(f => `<tr><td><b>${esc(f.simbolo)}</b> <span style="color:var(--muted)">${esc(f.nombre)} · ${esc(f.grupo)}</span></td><td>${Math.round(f.objetivo * 100)} %</td><td>${n2(f.valor / tot * 100)} %</td><td class="${f.caida >= 10 ? 'neg' : ''}">${f.caida == null ? '–' : '−' + n2(f.caida) + ' %'}</td></tr>`).join('')}</tbody></table></div>`;
+      h += `<div class="sec"><h3>ÚLTIMOS MOVIMIENTOS</h3><span>${esc(D.fecha)}</span></div><ul class="log">${(D.log || []).slice().reverse().map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+    }
+  } else if (sub === 'hoy') {
     h += `<table class="g"><tbody><tr><td>Valor</td><td>${eur(R.valor)}</td></tr><tr><td>Caída desde máximo</td><td class="${caida > 0.05 ? 'neg' : ''}">${n2(caida * 100)} %</td></tr><tr><td>Régimen</td><td>${esc(R.regimen)}</td></tr></tbody></table>`;
     const hist = (R.historia || []).map(x => x.valor);
     if (hist.length > 1) h += `<div style="margin:-6px 0 10px">${spark(hist).replace('viewBox="0 0 64 22"', 'viewBox="0 0 64 22" style="width:100%;height:46px" preserveAspectRatio="none"')}</div>`;

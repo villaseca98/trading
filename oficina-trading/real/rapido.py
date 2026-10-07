@@ -68,6 +68,8 @@ def simular(c: pd.Series):
 
 
 def main():
+    if C.ESTRATEGIA == "dca":
+        return  # con el plan de acumulación no hay compraventa rápida
     if "--simular" in sys.argv:
         for par in PARES:
             print(par, simular(velas(par, 24 * 120)))
