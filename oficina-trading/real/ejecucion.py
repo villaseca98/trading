@@ -7,6 +7,7 @@ Dos "brókers":
 import math
 import sys
 import time
+from pathlib import Path
 
 import config as C
 
@@ -92,9 +93,14 @@ class BrokerIBKR:
         self.ib = IB()
         self.ib.connect(C.HOST, C.PUERTO, clientId=C.CLIENT_ID, timeout=20)
         self.cuenta = self.ib.managedAccounts()[0]
-        if C.SOLO_DEMO and not self.cuenta.startswith("DU"):
-            self.ib.disconnect()
-            sys.exit(f"La cuenta {self.cuenta} no es de demo. Paro por seguridad (SOLO_DEMO = True).")
+        self.real = not self.cuenta.startswith("DU")
+        if self.real:
+            confirmacion = Path(__file__).resolve().parent / "CONFIRMO_DINERO_REAL.txt"
+            frase_ok = confirmacion.exists() and "acepto el riesgo" in confirmacion.read_text().lower()
+            if C.SOLO_DEMO or not frase_ok:
+                self.ib.disconnect()
+                sys.exit(f"La cuenta {self.cuenta} es REAL. Paro por seguridad: hace falta SOLO_DEMO = False "
+                         "y el archivo CONFIRMO_DINERO_REAL.txt con la frase 'Acepto el riesgo'.")
         self.contratos = {}
 
     def _contrato(self, s):
@@ -127,6 +133,8 @@ class BrokerIBKR:
             if grupo is compras and ventas:
                 time.sleep(15)  # deja que se llenen las ventas para tener efectivo
             disponible = self._cuenta("AvailableFunds") if grupo is compras else None
+            if disponible is not None and self.real:
+                disponible = min(disponible, C.LIMITE_COMPRAS_DIA_REAL)  # en real, tope diario de compras
             for o in grupo:
                 if disponible is not None:
                     cabe = int((disponible - comision(o["cantidad"] * o["limite"])) // o["limite"])

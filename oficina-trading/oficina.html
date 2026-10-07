@@ -621,6 +621,13 @@ function realHTML() {
   h += `</tbody></table></div>`;
   if ((R.ordenes || []).length) h += `<div class="sec"><h3>ÓRDENES</h3><span>${R.ordenes.length}</span></div><ul class="log">${R.ordenes.map(o => `<li><b>${o.lado === 'BUY' ? 'Compra' : 'Venta'}</b> ${o.cantidad} ${esc(o.simbolo)} a ${o.limite} € · ${esc(o.estado)}</li>`).join('')}</ul>`;
   h += `<div class="sec"><h3>LA OFICINA DICE</h3><span></span></div><ul class="log">${(R.voz || []).map(v => `<li><b>${esc(v.quien)}</b> ${esc(v.texto)}</li>`).join('')}</ul>`;
+  const Z = R.cazador;
+  if (Z) {
+    const pos = Object.entries(Z.cartera || {});
+    h += `<div class="sec"><h3>CAZADOR DE TENDENCIAS</h3><span>tope ${Math.round(Z.tope * 100)} % del capital</span></div>`;
+    h += pos.length ? `<div style="overflow-x:auto"><table class="g"><thead><tr><th>Posición</th><th>Entrada</th><th>Stop</th></tr></thead><tbody>${pos.map(([s, p]) => `<tr><td><b>${esc(s)}</b> <span style="color:var(--muted)">${esc((R.nombres || {})[s] || '')}</span> · ${p.cantidad}</td><td>${(+p.entrada).toFixed(2).replace('.', ',')} €</td><td>${(+p.stop).toFixed(2).replace('.', ',')} €</td></tr>`).join('')}</tbody></table></div>` : '<p class="nota">Sin posiciones abiertas ahora.</p>';
+    if ((Z.candidatos || []).length) h += `<p class="nota">En tendencia hoy: ${Z.candidatos.map(c => `<b>${esc(c.simbolo)}</b> +${String(c['momentum_6m_%']).replace('.', ',')} %${c.pasa_prevision ? '' : ' (descartado)'}`).join(' · ')}</p>`;
+  }
   if ((R.incubadora || []).length) {
     h += `<div class="sec"><h3>INCUBADORA REAL</h3><span>fuera de muestra</span></div><div style="overflow-x:auto"><table class="g"><thead><tr><th>Estrategia</th><th>Sesiones</th><th>Result.</th><th>Sharpe</th></tr></thead><tbody>`;
     for (const f of R.incubadora) h += `<tr><td>${esc(f.nombre)}${f.propuesta_ascenso ? ' <b class="pos">· propuesta</b>' : ''}</td><td>${f.sesiones}</td><td class="${cls(f['resultado_%'])}">${String(f['resultado_%']).replace('.', ',')} %</td><td>${f.sharpe ?? '–'}</td></tr>`;
@@ -764,7 +771,7 @@ $('bAyuda').onclick = () => {
 if (window.ESTADO_REAL) {
   $('tab-real').hidden = false;
   pestana = 'real';
-  const mapa = { analista: 'analista', macro: 'macro', riesgos: 'riesgos', kill: 'kill', comite: 'comite', ejecucion: 'ejecucion' };
+  const mapa = { analista: 'analista', macro: 'macro', riesgos: 'riesgos', kill: 'kill', comite: 'comite', ejecucion: 'ejecucion', prevision: 'mineria' };
   window.ESTADO_REAL.voz.forEach((v, i) => setTimeout(() => {
     const k = mapa[v.quien]; const w = k ? quienEs(k) : null;
     const clave = w ? w.clave : ([...agentes.values()].find(a => a.tr && a.tr.vivo) || {}).clave;

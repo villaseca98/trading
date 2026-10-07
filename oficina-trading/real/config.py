@@ -14,6 +14,24 @@ LIQUIDEZ = ("XEON", "XEON.DE", "Monetario en euros (€STR)")  # donde se aparca
 BOLSA = "IBIS"       # Xetra
 DIVISA = "EUR"
 
+# ── Cazador diario de tendencias: ETF/ETN de sectores, países y temas (Xetra, euros)
+CAZADOR = {
+    "SXRV": ("SXRV.DE", "Nasdaq-100"),
+    "QDVE": ("QDVE.DE", "Tecnología EE. UU. (S&P 500 IT)"),
+    "VVSM": ("VVSM.DE", "Semiconductores"),
+    "XAIX": ("XAIX.DE", "Inteligencia artificial y big data"),
+    "EXV3": ("EXV3.DE", "Tecnología europea"),
+    "EXV1": ("EXV1.DE", "Bancos europeos"),
+    "EXH1": ("EXH1.DE", "Petróleo y gas europeo"),
+    "DFNS": ("DFNS.DE", "Defensa"),
+    "IQQH": ("IQQH.DE", "Energía limpia"),
+    "G2X": ("G2X.DE", "Mineras de oro"),
+    "QDV5": ("QDV5.DE", "India"),
+    "EUNK": ("EUNK.DE", "Bolsa europea"),
+    "VBTC": ("VBTC.DE", "Bitcoin (ETN)"),
+}
+CAZADOR_TOPE = 0.20     # parte del capital que puede usar el cazador (20 %)
+
 # ── Perfil de riesgo: volatilidad anual objetivo de la cartera
 PERFILES = {"prudente": 0.08, "equilibrado": 0.12, "dinamico": 0.15}
 PERFIL = "equilibrado"
@@ -31,6 +49,12 @@ PUERTO = 4002           # IB Gateway demo = 4002 · TWS demo = 7497
 CLIENT_ID = 23
 MODO_PRUEBA = True      # True = calcula y apunta las órdenes pero no las envía
 SOLO_DEMO = True        # True = se niega a operar si la cuenta no empieza por "DU"
+
+# ── Dinero real. No tocar hasta llevar meses en la demo. Hacen falta LAS TRES cosas:
+#   1. SOLO_DEMO = False
+#   2. PUERTO = 4001 (IB Gateway iniciado en modo Live) o 7496 (TWS real)
+#   3. Un archivo CONFIRMO_DINERO_REAL.txt en esta carpeta con la frase: Acepto el riesgo
+LIMITE_COMPRAS_DIA_REAL = 2000.0  # en cuenta real, tope de compras por día (euros)
 
 # ── Sin IBKR (python fondo.py --sin-ibkr): capital ficticio para ver qué haría
 CAPITAL_FICTICIO = 10000.0

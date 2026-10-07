@@ -1,6 +1,7 @@
 """
-Fondo real automatizado: una pasada completa de la oficina. Pensado para una vez por semana
-(lunes por la mañana, con Xetra abierta).
+Fondo real automatizado: una pasada completa de la oficina. Pensado para cada día laborable
+a media mañana, con Xetra abierta. La cartera principal se rebalancea una vez por semana;
+el cazador de tendencias revisa entradas y stops todos los días.
 
   python fondo.py              → cuenta demo de IBKR (IB Gateway abierto en Paper Trading)
   python fondo.py --virtual    → cartera de papel propia, sin IBKR, con precios reales
@@ -24,6 +25,7 @@ import pandas as pd
 import config as C
 import datos
 import estrategia as E
+import cazador as K
 import incubadora
 from ejecucion import BrokerIBKR, BrokerVirtual, planificar
 
@@ -58,6 +60,7 @@ def main():
     # 1. Analista de datos
     tickers = {s: y for s, (y, _) in C.ACTIVOS.items()}
     tickers[C.LIQUIDEZ[0]] = C.LIQUIDEZ[1]
+    tickers.update({s: y for s, (y, _) in C.CAZADOR.items()})
     todo = datos.descargar(tickers)
     P = todo[list(C.ACTIVOS)].dropna(how="all")
     L = todo[C.LIQUIDEZ[0]].ffill()
@@ -76,7 +79,7 @@ def main():
     for f in E.explicar(P_ok, fecha, p):
         decir("trader", f)
     invertido = sum(pesos.values())
-    decir("riesgos", f"Perfil {C.PERFIL}: {invertido * 100:.0f} % invertido, {100 - invertido * 100:.0f} % en liquidez.")
+    decir("riesgos", f"Perfil {C.PERFIL}: {invertido * 100:.0f} % de la parte principal invertido, {max(0, 100 - invertido * 100):.0f} % en liquidez.")
 
     # 4. Broker y kill switch
     broker = BrokerVirtual(estado) if a.virtual else BrokerIBKR()
@@ -91,13 +94,16 @@ def main():
             pesos = {}
             decir("kill", "Kill switch activo: no se compra nada de riesgo.")
 
-        objetivo = {s: round(w * (1 - C.COLCHON_LIQUIDEZ), 4) for s, w in pesos.items()}
-        objetivo[C.LIQUIDEZ[0]] = round(max(0.0, 1 - C.COLCHON_LIQUIDEZ - sum(objetivo.values())), 4)
+        # la cartera principal usa el capital que no reserva el cazador
+        base = 1 - C.CAZADOR_TOPE - C.COLCHON_LIQUIDEZ
+        objetivo = {s: round(w * base, 4) for s, w in pesos.items()}
+        objetivo[C.LIQUIDEZ[0]] = round(max(0.0, base - sum(objetivo.values())), 4)
+        propios = set(C.ACTIVOS) | {C.LIQUIDEZ[0]}
 
         # 6. Ejecución (una vez por semana salvo kill switch o --forzar)
         semana = f"{fecha.isocalendar().year}-{fecha.isocalendar().week}"
         toca = a.forzar or estado.get("ultimo_rebalanceo") != semana or estado["kill"]
-        posiciones = broker.posiciones()
+        posiciones = {k: v for k, v in broker.posiciones().items() if k in propios}
         ordenes = planificar(objetivo, valor, posiciones, precios) if toca else []
         hechas = broker.ejecutar(ordenes, precios) if ordenes else []
         if toca:
@@ -106,7 +112,40 @@ def main():
             for o in hechas:
                 decir("ejecucion", f"{'Compro' if o['lado'] == 'BUY' else 'Vendo'} {o['cantidad']} {o['simbolo']} (límite {o['limite']} €): {o['estado']}.")
         else:
-            decir("ejecucion", "Sin órdenes: la cartera ya está donde debe." if toca else "Ya se rebalanceó esta semana.")
+            decir("ejecucion", "Cartera principal: sin órdenes, ya está donde debe." if toca else "Cartera principal: ya se rebalanceó esta semana.")
+
+        # 6b. Cazador diario de tendencias (parte satélite)
+        cartera = estado.setdefault("cazador", {})
+        reales = broker.posiciones()
+        for sim in list(cartera):  # lo que el bróker no tiene, fuera
+            if reales.get(sim, 0) <= 0:
+                cartera.pop(sim)
+            else:
+                cartera[sim]["cantidad"] = reales[sim]
+        Pc = todo[[s for s in C.CAZADOR if s in todo and todo[s].notna().sum() > 260]]
+        if estado["kill"]:
+            ventas = [{"simbolo": sim, "cantidad": pos["cantidad"], "precio": precios[sim], "motivo": "kill switch", "resultado_%": None} for sim, pos in cartera.items()]
+            compras, candidatos, notas_caz = [], [], []
+            cartera.clear()
+        else:
+            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE)
+        ordenes_caz = [{"simbolo": v["simbolo"], "lado": "SELL", "cantidad": v["cantidad"], "limite": round(v["precio"] * (1 - C.MARGEN_LIMITE), 2), "importe": round(v["cantidad"] * v["precio"], 2)} for v in ventas] + \
+                      [{"simbolo": c["simbolo"], "lado": "BUY", "cantidad": c["cantidad"], "limite": round(c["precio"] * (1 + C.MARGEN_LIMITE), 2), "importe": round(c["cantidad"] * c["precio"], 2)} for c in compras]
+        hechas_caz = broker.ejecutar(ordenes_caz, precios) if ordenes_caz else []
+        for o in hechas_caz:
+            if o["lado"] == "BUY" and ("sin efectivo" in o["estado"] or o["estado"].startswith("error")):
+                cartera.pop(o["simbolo"], None)
+        n_tend = len(candidatos)
+        decir("analista", f"Cazador: {len(Pc.columns)} ETF revisados, {n_tend} en tendencia alcista clara" + (f" (el mejor, {candidatos[0]['simbolo']}: {C.CAZADOR[candidatos[0]['simbolo']][1]}, +{candidatos[0]['momentum_6m_%']} % en 6 meses)." if candidatos else "."))
+        for v in ventas:
+            decir("riesgos", f"Cazador vende {v['simbolo']}: {v['motivo']}" + (f" ({v['resultado_%']:+.1f} %)." if v["resultado_%"] is not None else "."))
+        for c in compras:
+            decir("prevision", f"Cazador compra {c['cantidad']} {c['simbolo']} ({C.CAZADOR[c['simbolo']][1]}): {c['motivo']}. Stop en {c['stop']:.2f} €.")
+        for n in notas_caz[:3]:
+            decir("prevision", n)
+        if not ventas and not compras:
+            decir("prevision", f"Cazador: sin cambios hoy. Posiciones abiertas: {', '.join(cartera) or 'ninguna'}.")
+        hechas = hechas + hechas_caz
         valor_fin = broker.valor(precios)
         posiciones = broker.posiciones()
     finally:
@@ -143,7 +182,8 @@ def main():
         "pico": round(estado["pico"], 2), "kill": estado["kill"], "regimen": regimen,
         "pesos": objetivo, "posiciones": posiciones, "ordenes": hechas, "voz": voz,
         "incubadora": filas, "historia": estado["historia"],
-        "nombres": {s: d for s, (_, d) in C.ACTIVOS.items()} | {C.LIQUIDEZ[0]: C.LIQUIDEZ[2]},
+        "cazador": {"cartera": estado.get("cazador", {}), "candidatos": candidatos[:8], "tope": C.CAZADOR_TOPE},
+        "nombres": {s: d for s, (_, d) in C.ACTIVOS.items()} | {s: d for s, (_, d) in C.CAZADOR.items()} | {C.LIQUIDEZ[0]: C.LIQUIDEZ[2]},
     }
     OFICINA.parent.mkdir(exist_ok=True)
     OFICINA.write_text("window.ESTADO_REAL = " + json.dumps(resumen, ensure_ascii=False, default=str) + ";\n")
@@ -155,7 +195,10 @@ def main():
              ["", "## Incubadora (desde su alta, fuera de muestra)", "",
               "| Estrategia | Alta | Sesiones | Resultado | Sharpe | Caída máx. | Sharpe histórico* |", "|---|---|---|---|---|---|---|"] + \
              [f"| {f['nombre']} | {f['alta']} | {f['sesiones']} | {f['resultado_%']} % | {f.get('sharpe', '–')} | {f.get('caida_max_%', '–')} % | {f['historico'].get('sharpe', '–')} |" for f in filas] + \
-             ["", "*Histórico = antes de entrar en la incubadora. Orientativo: para ascender solo cuenta lo de después."]
+             ["", "*Histórico = antes de entrar en la incubadora. Orientativo: para ascender solo cuenta lo de después.",
+              "", f"## Cazador de tendencias (tope {C.CAZADOR_TOPE * 100:.0f} % del capital)", ""] + \
+             [f"- {sim}: {pos['cantidad']} desde {pos['fecha']} a {pos['entrada']:.2f} €, stop {pos['stop']:.2f} €" for sim, pos in estado.get("cazador", {}).items()] + \
+             (["", "Candidatos de hoy: " + ", ".join(f"{c['simbolo']} (+{c['momentum_6m_%']} % 6m)" for c in candidatos[:8])] if candidatos else [])
     INFORME.write_text("\n".join(lineas) + "\n")
     print(f"\nListo. Informe en {INFORME.name}; la oficina visual lo mostrará en la pestaña Real.")
 
