@@ -74,12 +74,14 @@ def buscar(P: pd.DataFrame, p=PARAMS) -> list:
     return sorted(out, key=lambda x: -x["puntuacion"])
 
 
-def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float, p=PARAMS, entero=True):
+def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float, p=PARAMS, entero=True, subtopes=None):
     """
     Decide las órdenes del día para el cazador.
     cartera = {simbolo: {"cantidad", "entrada", "fecha", "stop", "maximo"}} (se actualiza aquí).
+    subtopes = {nombre: (simbolos, fraccion)}: límite extra para un grupo (p. ej. cripto).
     Devuelve (ventas, compras, candidatos, notas) con cantidades enteras.
     """
+    subtopes = subtopes or {}
     notas, ventas, compras = [], [], []
     hoy = P.index[-1]
     # 1. salidas: stop que sube o pérdida de la media 50
@@ -114,6 +116,10 @@ def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float,
         if riesgo_unit <= 0:
             continue
         importe = min(p["riesgo_pos"] * capital_total / riesgo_unit * cand["precio"], p["max_pos"] * capital_total, libre)
+        for nombre, (grupo, frac) in subtopes.items():
+            if s in grupo:
+                en_grupo = sum(pos["cantidad"] * float(P[x].dropna().iloc[-1]) for x, pos in cartera.items() if x in grupo and x in P)
+                importe = min(importe, frac * capital_total - en_grupo)
         q = math.floor(importe / cand["precio"]) if entero else importe / cand["precio"]
         if q <= 0:
             if libre < cand["precio"]:

@@ -28,9 +28,19 @@ CAZADOR = {
     "G2X": ("G2X.DE", "Mineras de oro"),
     "QDV5": ("QDV5.DE", "India"),
     "EUNK": ("EUNK.DE", "Bolsa europea"),
-    "VBTC": ("VBTC.DE", "Bitcoin (ETN)"),
 }
 CAZADOR_TOPE = 0.20     # parte del capital que puede usar el cazador (20 %)
+
+# ── Cripto: ETN con respaldo físico en Xetra (se compran como un ETF desde IBKR España).
+# Entran en el cazador: solo se compran en tendencia alcista, con stop y arriesgando 1 % por posición.
+# Comprobar cada ticker en IBKR antes de la primera orden real.
+CRIPTO = {
+    "VBTC": ("VBTC.DE", "Bitcoin (VanEck, ETN físico)"),
+    "VETH": ("VETH.DE", "Ethereum (VanEck, ETN físico)"),
+    "VSOL": ("VSOL.DE", "Solana (VanEck, ETN físico)"),
+}
+CRIPTO_TOPE = 0.10      # máximo del capital total en cripto (10 %), dentro del tope del cazador
+CAZADOR.update(CRIPTO)
 
 # ── Perfil de riesgo: volatilidad anual objetivo de la cartera
 PERFILES = {"prudente": 0.08, "equilibrado": 0.12, "dinamico": 0.15}
