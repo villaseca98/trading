@@ -69,7 +69,7 @@ PERFIL = "equilibrado"
 # ── Riesgos
 KILL_DD = 0.15          # si la cuenta cae un 15 % desde su máximo: todo a liquidez y se para
 MAX_ORDEN_EUR = 25000.0 # tope de seguridad por orden (si una orden lo supera, se recorta)
-MIN_ORDEN_EUR = 150.0   # no merece la pena mover menos (comisiones)
+MIN_ORDEN_EUR = 50.0   # no merece la pena mover menos (comisiones)
 COLCHON_LIQUIDEZ = 0.02 # 2 % siempre en efectivo para comisiones
 MARGEN_LIMITE = 0.004   # órdenes limitadas a ±0,4 % del último precio
 

@@ -13,7 +13,7 @@ import config as C
 
 
 def comision(importe):
-    return max(3.0, importe * 0.0005)  # aproximación a la tarifa fija de IBKR en Xetra
+    return max(1.25, importe * 0.0005)  # aprox. tarifa escalonada de IBKR en Xetra (por orden, no por acción)
 
 
 def planificar(pesos: dict, valor: float, posiciones: dict, precios: dict) -> list:
