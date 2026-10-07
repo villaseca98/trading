@@ -8,3 +8,5 @@ __pycache__/
 .venv/
 node_modules/
 public/
+claves_alpaca.txt
+CONFIRMO_DINERO_REAL.txt

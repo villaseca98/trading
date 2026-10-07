@@ -1,4 +1,7 @@
-"""Ajustes del fondo real. Lo normal es tocar solo PERFIL y, cuando toque, MODO_PRUEBA."""
+"""Ajustes del fondo real. Lo normal es tocar solo BROKER, PERFIL y, cuando toque, MODO_PRUEBA."""
+
+BROKER = "ibkr"   # "ibkr" (ETF europeos en Xetra, euros) o "alpaca" (EE. UU., dólares, sin comisión, con fracciones)
+FRACCIONES = False  # Alpaca permite comprar fracciones de acción; se activa solo abajo
 
 # ── Activos (ETF UCITS que se pueden comprar desde España, en Xetra y en euros)
 # simbolo IBKR: (ticker de Yahoo para los datos, descripción)
@@ -88,3 +91,28 @@ LIMITE_COMPRAS_DIA_REAL = 2000.0  # en cuenta real, tope de compras por día (eu
 
 # ── Sin IBKR (python fondo.py --sin-ibkr): capital ficticio para ver qué haría
 CAPITAL_FICTICIO = 10000.0
+
+
+# ── Universo para Alpaca (EE. UU., en dólares). Sustituye al de Xetra si BROKER = "alpaca".
+if BROKER == "alpaca":
+    DIVISA = "USD"; FRACCIONES = True
+    ACTIVOS = {
+        "URTH": ("URTH", "Bolsa mundial desarrollada (MSCI World)"),
+        "SPY": ("SPY", "Bolsa EE. UU. (S&P 500)"),
+        "QQQ": ("QQQ", "Tecnológicas EE. UU. (Nasdaq-100)"),
+        "IEMG": ("IEMG", "Bolsa emergente"),
+        "GLD": ("GLD", "Oro"),
+        "IEF": ("IEF", "Bonos del Tesoro EE. UU. 7-10 años"),
+    }
+    LIQUIDEZ = ("BIL", "BIL", "Letras del Tesoro EE. UU. 1-3 meses")
+    CAZADOR = {
+        "XLK": ("XLK", "Tecnología EE. UU."), "SMH": ("SMH", "Semiconductores"),
+        "XLF": ("XLF", "Bancos y finanzas EE. UU."), "XLE": ("XLE", "Petróleo y gas EE. UU."),
+        "ITA": ("ITA", "Defensa y aeroespacial"), "ICLN": ("ICLN", "Energía limpia"),
+        "GDX": ("GDX", "Mineras de oro"), "INDA": ("INDA", "India"), "VGK": ("VGK", "Bolsa europea"),
+        "XLV": ("XLV", "Salud EE. UU."), "XLI": ("XLI", "Industria EE. UU."),
+    }
+    CRIPTO = {"IBIT": ("IBIT", "Bitcoin (ETF spot)"), "ETHA": ("ETHA", "Ethereum (ETF spot)")}
+    INVERSOS = {"SH": ("SH", "S&P 500 a la baja"), "PSQ": ("PSQ", "Nasdaq-100 a la baja")}
+    CAZADOR.update(CRIPTO); CAZADOR.update(INVERSOS)
+    MIN_ORDEN_EUR = 5.0   # sin comisión: se pueden mover importes pequeños

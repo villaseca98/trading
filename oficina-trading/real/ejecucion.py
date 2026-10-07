@@ -13,7 +13,14 @@ import config as C
 
 
 def comision(importe):
+    if C.BROKER == "alpaca":
+        return 0.0
     return max(1.25, importe * 0.0005)  # aprox. tarifa escalonada de IBKR en Xetra (por orden, no por acción)
+
+
+def _cant(x):
+    """Cantidad a comprar: entera, o con 4 decimales si el bróker admite fracciones."""
+    return math.floor(x * 1e4) / 1e4 if C.FRACCIONES else math.floor(x)
 
 
 def planificar(pesos: dict, valor: float, posiciones: dict, precios: dict) -> list:
@@ -24,15 +31,16 @@ def planificar(pesos: dict, valor: float, posiciones: dict, precios: dict) -> li
         if not px or px <= 0:
             continue
         actual = posiciones.get(s, 0)
-        objetivo = math.floor(pesos.get(s, 0) * valor / px)
+        objetivo = _cant(pesos.get(s, 0) * valor / px)
         delta = objetivo - actual
+        delta = round(delta, 4)
         if delta == 0:
             continue
         importe = abs(delta) * px
         if importe < C.MIN_ORDEN_EUR and objetivo != 0:
             continue  # ajuste pequeño: no compensa la comisión
         if importe > C.MAX_ORDEN_EUR:
-            delta = int(math.copysign(math.floor(C.MAX_ORDEN_EUR / px), delta))
+            delta = math.copysign(_cant(C.MAX_ORDEN_EUR / px), delta)
             if delta == 0:
                 continue
         lado = "BUY" if delta > 0 else "SELL"
@@ -63,7 +71,7 @@ class BrokerVirtual:
             importe = o["cantidad"] * px
             if o["lado"] == "BUY":
                 if importe + comision(importe) > self.v["efectivo"]:
-                    o["cantidad"] = int((self.v["efectivo"] - comision(importe)) // px)
+                    o["cantidad"] = _cant((self.v["efectivo"] - comision(importe)) / px)
                     importe = o["cantidad"] * px; o["importe"] = round(importe, 2)
                     if o["cantidad"] <= 0:
                         o["estado"] = "sin efectivo suficiente"; hechas.append(o); continue
@@ -157,3 +165,60 @@ class BrokerIBKR:
 
     def cerrar(self):
         self.ib.disconnect()
+
+
+class BrokerAlpaca:
+    """Cuenta de Alpaca (paper por defecto). Claves en claves_alpaca.txt: dos líneas, KEY y SECRET."""
+
+    def __init__(self):
+        from alpaca.trading.client import TradingClient
+        f = Path(__file__).resolve().parent / "claves_alpaca.txt"
+        if not f.exists():
+            sys.exit("Falta claves_alpaca.txt (dos líneas: API key y secret de la cuenta Paper de Alpaca).")
+        key, secret = [l.strip() for l in f.read_text().splitlines() if l.strip()][:2]
+        confirmacion = Path(__file__).resolve().parent / "CONFIRMO_DINERO_REAL.txt"
+        real_ok = (not C.SOLO_DEMO) and confirmacion.exists() and "acepto el riesgo" in confirmacion.read_text().lower()
+        self.real = real_ok
+        self.t = TradingClient(key, secret, paper=not real_ok)
+        self.cuenta = ("ALPACA " if real_ok else "ALPACA-PAPER ") + str(self.t.get_account().account_number)
+
+    def valor(self, precios):
+        return float(self.t.get_account().equity)
+
+    def posiciones(self):
+        return {p.symbol: float(p.qty) for p in self.t.get_all_positions()}
+
+    def ejecutar(self, ordenes, precios):
+        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.enums import OrderSide, TimeInForce
+        hechas = []
+        ventas = [o for o in ordenes if o["lado"] == "SELL"]; compras = [o for o in ordenes if o["lado"] == "BUY"]
+        for grupo in (ventas, compras):
+            if grupo is compras and ventas and not C.MODO_PRUEBA:
+                time.sleep(10)
+            disponible = float(self.t.get_account().buying_power) if grupo is compras else None
+            if disponible is not None:
+                disponible = min(disponible, float(self.t.get_account().cash))  # sin margen
+                if self.real:
+                    disponible = min(disponible, C.LIMITE_COMPRAS_DIA_REAL)
+            for o in grupo:
+                if disponible is not None:
+                    cabe = _cant(disponible / o["limite"])
+                    if cabe < o["cantidad"]:
+                        o["cantidad"] = cabe; o["importe"] = round(cabe * o["limite"], 2)
+                    if o["cantidad"] <= 0 or o["importe"] < C.MIN_ORDEN_EUR:
+                        o["estado"] = "sin efectivo suficiente"; hechas.append(o); continue
+                    disponible -= o["cantidad"] * o["limite"]
+                if C.MODO_PRUEBA:
+                    o["estado"] = "simulada (MODO_PRUEBA)"; hechas.append(o); continue
+                try:
+                    r = self.t.submit_order(MarketOrderRequest(symbol=o["simbolo"], qty=o["cantidad"],
+                                            side=OrderSide.BUY if o["lado"] == "BUY" else OrderSide.SELL, time_in_force=TimeInForce.DAY))
+                    o["estado"] = str(r.status); o["orden"] = str(r.id)
+                except Exception as ex:
+                    o["estado"] = f"error: {ex}"
+                hechas.append(o)
+        return hechas
+
+    def cerrar(self):
+        pass

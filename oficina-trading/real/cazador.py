@@ -134,7 +134,7 @@ def gestionar(P: pd.DataFrame, cartera: dict, capital_total: float, tope: float,
             if s in grupo:
                 en_grupo = sum(pos["cantidad"] * float(P[x].dropna().iloc[-1]) for x, pos in cartera.items() if x in grupo and x in P)
                 importe = min(importe, frac * capital_total - en_grupo)
-        q = math.floor(importe / cand["precio"]) if entero else importe / cand["precio"]
+        q = math.floor(importe / cand["precio"]) if entero else math.floor(importe / cand["precio"] * 1e4) / 1e4
         if q <= 0:
             if libre < cand["precio"]:
                 notas.append(f"{s} interesa, pero el cazador ya usa casi todo su tope de capital.")

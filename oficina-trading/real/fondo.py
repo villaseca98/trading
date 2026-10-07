@@ -28,7 +28,7 @@ import estrategia as E
 import cazador as K
 import futuros as FUT
 import incubadora
-from ejecucion import BrokerIBKR, BrokerVirtual, planificar
+from ejecucion import BrokerAlpaca, BrokerIBKR, BrokerVirtual, planificar
 
 AQUI = Path(__file__).resolve().parent
 ESTADO = AQUI / "estado.json"
@@ -85,7 +85,7 @@ def main():
     decir("riesgos", f"Perfil {C.PERFIL}: {invertido * 100:.0f} % de la parte principal invertido, {max(0, 100 - invertido * 100):.0f} % en liquidez.")
 
     # 4. Broker y kill switch
-    broker = BrokerVirtual(estado) if a.virtual else BrokerIBKR()
+    broker = BrokerVirtual(estado) if a.virtual else (BrokerAlpaca() if C.BROKER == "alpaca" else BrokerIBKR())
     try:
         valor = broker.valor(precios)
         estado["pico"] = max(estado["pico"] or valor, valor)
@@ -135,7 +135,7 @@ def main():
             freno = bool(previo) and valor < previo * (1 - C.LIMITE_PERDIDA_DIA)
             if freno:
                 decir("riesgos", f"Límite diario: la cuenta cae {(1 - valor / previo) * 100:.1f} % desde ayer. Hoy no se abren posiciones nuevas.")
-            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, sin_compras=freno, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE), "baja": (set(C.INVERSOS), C.INVERSOS_TOPE)})
+            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, entero=not C.FRACCIONES, sin_compras=freno, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE), "baja": (set(C.INVERSOS), C.INVERSOS_TOPE)})
         ordenes_caz = [{"simbolo": v["simbolo"], "lado": "SELL", "cantidad": v["cantidad"], "limite": round(v["precio"] * (1 - C.MARGEN_LIMITE), 2), "importe": round(v["cantidad"] * v["precio"], 2)} for v in ventas] + \
                       [{"simbolo": c["simbolo"], "lado": "BUY", "cantidad": c["cantidad"], "limite": round(c["precio"] * (1 + C.MARGEN_LIMITE), 2), "importe": round(c["cantidad"] * c["precio"], 2)} for c in compras]
         hechas_caz = broker.ejecutar(ordenes_caz, precios) if ordenes_caz else []
@@ -192,7 +192,7 @@ def main():
 
     resumen = {
         "fecha": str(fecha.date()), "generado": datetime.now().isoformat(timespec="seconds"),
-        "modo": "virtual" if a.virtual else ("IBKR demo · prueba" if C.MODO_PRUEBA else "IBKR demo"),
+        "modo": "virtual" if a.virtual else (f"{C.BROKER.upper()} demo · prueba" if C.MODO_PRUEBA else f"{C.BROKER.upper()} demo"),
         "cuenta": broker.cuenta, "perfil": C.PERFIL, "valor": round(valor_fin, 2),
         "pico": round(estado["pico"], 2), "kill": estado["kill"], "regimen": regimen,
         "pesos": objetivo, "posiciones": posiciones, "ordenes": hechas, "voz": voz,
