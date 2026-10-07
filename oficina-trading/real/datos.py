@@ -10,7 +10,7 @@ def descargar(tickers: dict, años: int = 16) -> pd.DataFrame:
     try:
         import yfinance as yf
         bruto = yf.download(list(tickers.values()), period=f"{años}y", interval="1d",
-                            auto_adjust=True, progress=False, threads=True)
+                            auto_adjust=True, progress=False, threads=False)
         cierres = bruto["Close"] if isinstance(bruto.columns, pd.MultiIndex) else bruto[["Close"]]
         inverso = {v: k for k, v in tickers.items()}
         cierres = cierres.rename(columns=inverso)[list(tickers)]

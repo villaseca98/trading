@@ -23,7 +23,6 @@ CAZADOR = {
     "EXV3": ("EXV3.DE", "Tecnología europea"),
     "EXV1": ("EXV1.DE", "Bancos europeos"),
     "EXH1": ("EXH1.DE", "Petróleo y gas europeo"),
-    "DFNS": ("DFNS.DE", "Defensa"),
     "IQQH": ("IQQH.DE", "Energía limpia"),
     "G2X": ("G2X.DE", "Mineras de oro"),
     "QDV5": ("QDV5.DE", "India"),
@@ -37,7 +36,6 @@ CAZADOR_TOPE = 0.20     # parte del capital que puede usar el cazador (20 %)
 CRIPTO = {
     "VBTC": ("VBTC.DE", "Bitcoin (VanEck, ETN físico)"),
     "VETH": ("VETH.DE", "Ethereum (VanEck, ETN físico)"),
-    "VSOL": ("VSOL.DE", "Solana (VanEck, ETN físico)"),
 }
 CRIPTO_TOPE = 0.10      # máximo del capital total en cripto (10 %), dentro del tope del cazador
 CAZADOR.update(CRIPTO)
