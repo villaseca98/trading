@@ -1,6 +1,8 @@
 """Ajustes del fondo real. Lo normal es tocar solo BROKER, PERFIL y, cuando toque, MODO_PRUEBA."""
 
-BROKER = "ibkr"   # "ibkr" (ETF europeos en Xetra, euros) o "alpaca" (EE. UU., dólares, sin comisión, con fracciones)
+from pathlib import Path as _P
+_f = _P(__file__).resolve().parent / "broker.txt"  # archivo local (no se sube) para elegir bróker sin tocar este fichero
+BROKER = _f.read_text().strip() if _f.exists() else "ibkr"   # "ibkr" (ETF europeos en Xetra, euros) o "alpaca" (EE. UU., dólares, sin comisión, con fracciones)
 FRACCIONES = False  # Alpaca permite comprar fracciones de acción; se activa solo abajo
 
 # ── Activos (ETF UCITS que se pueden comprar desde España, en Xetra y en euros)
