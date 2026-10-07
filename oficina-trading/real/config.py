@@ -42,6 +42,16 @@ CRIPTO = {
 CRIPTO_TOPE = 0.10      # máximo del capital total en cripto (10 %), dentro del tope del cazador
 CAZADOR.update(CRIPTO)
 
+# ── A la baja: ETF inversos (suben cuando el índice baja). Sin margen ni cortos: como mucho se pierde lo invertido.
+# El cazador los compra solo cuando ESTÁN en tendencia alcista, es decir, cuando el índice lleva tiempo cayendo.
+# Son diarios: en mercados laterales pierden valor, por eso tienen stop y tope propio. Verificar tickers en IBKR.
+INVERSOS = {
+    "DXSN": ("DXSN.DE", "DAX a la baja (Xtrackers ShortDAX)"),
+    "DXS3": ("DXS3.DE", "S&P 500 a la baja (Xtrackers S&P 500 Inverse)"),
+}
+INVERSOS_TOPE = 0.10    # máximo del capital total en apuestas a la baja
+CAZADOR.update(INVERSOS)
+
 # ── Perfil de riesgo: volatilidad anual objetivo de la cartera
 PERFILES = {"prudente": 0.08, "equilibrado": 0.12, "dinamico": 0.15}
 PERFIL = "equilibrado"

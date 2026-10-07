@@ -128,7 +128,7 @@ def main():
             compras, candidatos, notas_caz = [], [], []
             cartera.clear()
         else:
-            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE)})
+            ventas, compras, candidatos, notas_caz = K.gestionar(Pc, cartera, valor, C.CAZADOR_TOPE, subtopes={"cripto": (set(C.CRIPTO), C.CRIPTO_TOPE), "baja": (set(C.INVERSOS), C.INVERSOS_TOPE)})
         ordenes_caz = [{"simbolo": v["simbolo"], "lado": "SELL", "cantidad": v["cantidad"], "limite": round(v["precio"] * (1 - C.MARGEN_LIMITE), 2), "importe": round(v["cantidad"] * v["precio"], 2)} for v in ventas] + \
                       [{"simbolo": c["simbolo"], "lado": "BUY", "cantidad": c["cantidad"], "limite": round(c["precio"] * (1 + C.MARGEN_LIMITE), 2), "importe": round(c["cantidad"] * c["precio"], 2)} for c in compras]
         hechas_caz = broker.ejecutar(ordenes_caz, precios) if ordenes_caz else []
